@@ -10,7 +10,7 @@ contract CardGenerator is VRFConsumerBase{
     uint nonce;
     uint count;
     uint public cardd;
-    uint deckSize = 104;
+    uint deckSize = (6*52);
     
     mapping(uint => bool) private cardCheck;
     
@@ -31,7 +31,7 @@ contract CardGenerator is VRFConsumerBase{
         requestId = requestRandomness(keyHash,fee);
         nonce = 0;
         count = 0;
-        resetCardCheck();
+        resetCardDeck();
         return requestId;
     }
     
@@ -41,7 +41,7 @@ contract CardGenerator is VRFConsumerBase{
     }
     
     function getCard() public returns(uint){
-        require(count < deckSize, "No cards left");
+        require(count < (deckSize / 2), "Time to shuffle.");
         uint randomCardNumber = uint(keccak256(abi.encode(randomResult,nonce)));
         nonce ++;
         uint card = randomCardNumber % deckSize;
@@ -57,23 +57,9 @@ contract CardGenerator is VRFConsumerBase{
         }
     }
     
-    function getCardCount(uint _card) internal returns(uint,uint) {
-        uint c = (_card % 13) + 1;
         
-        if(c == 1){
-            return(1,11);
-        }
-        
-        else if(c > 10){
-            return(10,10);
-        }
-        
-        else{
-            return(c,c);
-        }
-    }
     
-    function resetCardCheck() private{
+    function resetCardDeck() internal{
         for(uint i=0;i<deckSize;i++)
         {
             cardCheck[i] = false;
