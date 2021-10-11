@@ -7,12 +7,15 @@ contract Game is CardGenerator{
     
     uint minBet = 20; //missing function to set minBet ########
     
-    uint round = 0; //to keep track of the game no.
+    uint round; //to keep track of the game no.
+    uint betAmount;
     uint[] playerCards; //array to store players Cards
     string[] viewPlayerCards;
     uint[] private dealerCards;// array to store dealers cards
     string[] viewDealerCards;
     address player;
+    uint doubleDownFlag;
+    uint splitFlag;
     
     enum Results{
         Draw,
@@ -21,11 +24,9 @@ contract Game is CardGenerator{
         uncertain
     }
     enum Stage{
-        start,
+        start,   
         deal,
-        hitorstand,
-        split,
-        double,
+        hitStand,
         nextRound
     }
     
@@ -40,43 +41,56 @@ contract Game is CardGenerator{
         _;
     }
     
+    modifier onlyStage(Stage reqStage) {
+        require(stage == reqStage, "Not in this stage.");
+        _;
+    }
     
-    function start() public { //to start the game by getting a random number
-        require(stage == Stage.start, "Not in stage Start.");
+    
+    function start() onlyStage(Stage.start) public { //to start the game by getting a random number
         getRandomNumber(); //getting random number for the game
         player = msg.sender;
         stage = Stage.deal; // next stage is dealing cards
+        round = 0;
     } 
     
     
     
     
     
-    function deal(uint _amount) onlyPlayer public {
+    function deal(uint _amount) onlyPlayer onlyStage(Stage.deal) public {
         require(_amount >= minBet, "Low bet amount.");
-        require(stage == Stage.deal, "Cannot deal."); //to avoid execution at any other stage
+        betAmount = _amount;
         
         dealerCards.push(getCard()); //giving 1 card to dealer
         playerCards.push(getCard());//giving 2 cards to player
         playerCards.push(getCard());
         
+        doubleDownFlag = 1;
+        
+        if((playerCards[0] % 13) == (playerCards[1] % 13)) {
+            splitFlag = 1;
+        }
         
         (uint sum1Player, uint sum2Player) = countTotal(playerCards);
+        
         if(sum1Player == 21 || sum2Player == 21){ //check for blackjack
             checkDealer21();//check for draw
             stage = Stage.nextRound;
         }
         else {
-            stage = Stage.hitorstand; // next stage is hit/stand if sum is not 21
+            stage = Stage.hitStand; // next stage is hit/stand if sum is not 21
         }
     }
     
     
     
-    function hit() onlyPlayer public {
-        require(stage == Stage.hitorstand, "Cannot hit now."); //to avoid execution at any other stage
+    function hit() onlyPlayer onlyStage(Stage.hitStand) public {
         
         playerCards.push(getCard()); //giving 1 card to player
+        
+        doubleDownFlag = 0;
+        splitFlag = 0;
         
         (uint sum1Player, uint sum2Player) = countTotal(playerCards); //counting sum for exceding 21 or blackjack
         if(sum1Player > 21 && sum2Player > 21){ //checking for bust
@@ -90,22 +104,56 @@ contract Game is CardGenerator{
         }
     }
     
-    function stand() onlyPlayer public {
-        require(stage == Stage.hitorstand, "Cannot stand now."); //to avoid execution at any other stage
+    function stand() onlyPlayer onlyStage(Stage.hitStand) public {
+        
+        doubleDownFlag = 0;
+        splitFlag = 0;
         
         (uint sum1Player, uint sum2Player) = countTotal(playerCards);
-        uint sumPlayer;
         
         if(sum1Player < 21 && sum2Player < 21) {
-            sumPlayer = sum2Player;
+            checkStand(sum2Player);
         }
         else {
-            sumPlayer = sum1Player;
+            checkStand(sum1Player);
         }
         
-        checkStand(sumPlayer);
         stage = Stage.nextRound;
     }
+    
+    function doubleDown(uint _2xbetAmount) onlyPlayer onlyStage(Stage.hitStand) public {
+        require(doubleDownFlag == 1, "Can not Double Down");
+        require(_2xbetAmount == (2 * betAmount), "Provide the Double Down amount.");
+        
+        doubleDownFlag = 0;
+        splitFlag = 0;
+        
+        playerCards.push(getCard());
+        (uint sum1Player, uint sum2Player) = countTotal(playerCards);
+        
+        if(sum1Player > 21 && sum2Player > 21){ //checking for bust
+            dealerCards.push(getCard());
+            roundResults.push(Results.Dealer); //storing winner
+        }
+        else if(sum1Player == 21 || sum2Player == 21){ //check for blackjack
+            checkDealer21(); //check for draw 
+        }
+        else if(sum1Player < 21 && sum2Player < 21) { //check for stand with both no. below 21
+            checkStand(sum2Player);
+        }
+        else {
+            checkStand(sum1Player); // check for stand with 1 no. below 21
+        }
+        
+        stage = Stage.nextRound;
+    }
+    
+    
+    
+    
+    
+    
+    
     
     
     
@@ -161,7 +209,7 @@ contract Game is CardGenerator{
                 roundResults.push(Results.Player);
             }
         }
-        else if(stage == Stage.hitorstand) {
+        else if(stage == Stage.hitStand) {
             (uint sum1dealer, uint sum2dealer) = countTotal(dealerCards);
             uint f = 0;
             
@@ -257,11 +305,13 @@ contract Game is CardGenerator{
     }
     
     
-    function nextRound() public {
-        require(stage == Stage.nextRound, "Game not ended.");
+    function nextRound() onlyStage(Stage.nextRound) public {
+        
         delete playerCards;
         delete dealerCards;
         round ++;
         stage = Stage.deal;
+        doubleDownFlag = 0;
+        splitFlag = 0;
     }
 }
