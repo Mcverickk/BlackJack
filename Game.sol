@@ -239,7 +239,8 @@ contract Game is CardGenerator{
         delete viewPlayerCards;
         
         for(uint i=0; i < playerCards.length; i++) { //storing no. of each cards
-            viewPlayerCards.push(getCardString(playerCards[i]));
+            (string memory x,) = getCardString(playerCards[i]);
+            viewPlayerCards.push(x);
         }
         return viewPlayerCards;
     }
@@ -249,7 +250,8 @@ contract Game is CardGenerator{
         delete viewDealerCards;
         
         for(uint i=0; i < dealerCards.length; i++) { //storing no. of each cards
-            viewDealerCards.push(getCardString(dealerCards[i]));
+            (string memory x,) = getCardString(dealerCards[i]);
+            viewDealerCards.push(x);
         }
         return viewDealerCards;
     }
