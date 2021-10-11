@@ -6,8 +6,8 @@ contract CardGenerator is VRFConsumerBase{
 
     bytes32 keyHash;
     uint fee;
-    uint randomResult;
-    uint nonce;
+    uint private randomResult;
+    uint private nonce;
     uint count;
     uint public cardd;
     uint deckSize = (6*52);
@@ -26,7 +26,7 @@ contract CardGenerator is VRFConsumerBase{
         fee = 0.1 * 10 ** 18; // 0.1 LINK (Varies by network)
         }
     
-    function getRandomNumber() public returns(bytes32 requestId){
+    function getRandomNumber() internal returns(bytes32 requestId){
         require(LINK.balanceOf(address(this)) >= fee,"Low LINK");
         requestId = requestRandomness(keyHash,fee);
         nonce = 0;
@@ -35,13 +35,15 @@ contract CardGenerator is VRFConsumerBase{
         return requestId;
     }
     
-    function fulfillRandomness(bytes32 requestId, uint randomness) internal override{
+    function fulfillRandomness(bytes32 requestId, uint randomness) internal override{ //used by chainlink to send the randomness...is run by getRandomNumber()
         randomResult = randomness;
         emit _randomNumber("Random number generated");
     }
     
-    function getCard() public returns(uint){
-        require(count < (deckSize / 2), "Time to shuffle.");
+    function getCard() internal returns(uint){
+        if(count == (deckSize / 2)) {
+            resetCardDeck();
+        }
         uint randomCardNumber = uint(keccak256(abi.encode(randomResult,nonce)));
         nonce ++;
         uint card = randomCardNumber % deckSize;
@@ -57,9 +59,54 @@ contract CardGenerator is VRFConsumerBase{
         }
     }
     
+    function getCardString(uint _numberCard) pure internal returns(string memory _stringCard) {
+        uint card = (_numberCard % 13) + 1;
+        
+        if(card == 1) {
+            return "A";
+        }
+        else if(card == 2) {
+            return "2";
+        }
+        else if(card == 3) {
+            return "3";
+        }
+        else if(card == 4) {
+            return "4";
+        }
+        else if(card == 5) {
+            return "5";
+        }
+        else if(card == 6) {
+            return "6";
+        }
+        else if(card == 7) {
+            return "7";
+        }
+        else if(card == 8) {
+            return "8";
+        }
+        else if(card == 9) {
+            return "9";
+        }
+        else if(card == 10) {
+            return "10";
+        }
+        else if(card == 11) {
+            return "J";
+        }
+        else if(card == 12) {
+            return "Q";
+        }
+        else if(card == 13) {
+            return "K";
+        }
+    }
+    
         
     
     function resetCardDeck() internal{
+        count = 0;
         for(uint i=0;i<deckSize;i++)
         {
             cardCheck[i] = false;
