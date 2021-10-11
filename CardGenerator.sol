@@ -59,47 +59,48 @@ contract CardGenerator is VRFConsumerBase{
         }
     }
     
-    function getCardString(uint _numberCard) pure internal returns(string memory _stringCard) {
+    function getCardString(uint _numberCard) pure internal returns(string memory _stringCard, uint suits) {
         uint card = (_numberCard % 13) + 1;
+        suits = (_numberCard % 52) / 13;
         
         if(card == 1) {
-            return "A";
+            return ("A",suits);
         }
         else if(card == 2) {
-            return "2";
+            return ("2",suits);
         }
         else if(card == 3) {
-            return "3";
+            return ("3",suits);
         }
         else if(card == 4) {
-            return "4";
+            return ("4",suits);
         }
         else if(card == 5) {
-            return "5";
+            return ("5",suits);
         }
         else if(card == 6) {
-            return "6";
+            return ("6",suits);
         }
         else if(card == 7) {
-            return "7";
+            return ("7",suits);
         }
         else if(card == 8) {
-            return "8";
+            return ("8",suits);
         }
         else if(card == 9) {
-            return "9";
+            return ("9",suits);
         }
         else if(card == 10) {
-            return "10";
+            return ("10",suits);
         }
         else if(card == 11) {
-            return "J";
+            return ("J",suits);
         }
         else if(card == 12) {
-            return "Q";
+            return ("Q",suits);
         }
         else if(card == 13) {
-            return "K";
+            return ("K",suits);
         }
     }
     
