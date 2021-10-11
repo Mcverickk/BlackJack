@@ -8,24 +8,28 @@ contract Game is CardGenerator{
     uint minBet = 20; //missing function to set minBet ########
     
     uint round = 0; //to keep track of the game no.
-    uint[] public playerCards; //array to store players Cards
+    uint[] playerCards; //array to store players Cards
+    string[] viewPlayerCards;
     uint[] private dealerCards;// array to store dealers cards
-    uint public dealerCardOne = deckSize + 1; // dealers 1st card, deckSize +1 ro avoid misunderstanding at the start
+    string[] viewDealerCards;
     address player;
     
     enum Results{
+        Draw,
         Player,
         Dealer,
-        Draw,
         uncertain
     }
     enum Stage{
         start,
         deal,
-        hitorstand
+        hitorstand,
+        split,
+        double,
+        nextRound
     }
     
-    Stage stage = Stage.start; //to store the stage
+    Stage public stage = Stage.start; //to store the stage
     
     Results[] public roundResults; // to store the results of each round
     
@@ -46,19 +50,21 @@ contract Game is CardGenerator{
     
     
     
+    
+    
     function deal(uint _amount) onlyPlayer public {
         require(_amount >= minBet, "Low bet amount.");
         require(stage == Stage.deal, "Cannot deal."); //to avoid execution at any other stage
         
+        dealerCards.push(getCard()); //giving 1 card to dealer
         playerCards.push(getCard());//giving 2 cards to player
         playerCards.push(getCard());
         
-        dealerCards.push(getCard()); //giving 1 card to dealer
         
         (uint sum1Player, uint sum2Player) = countTotal(playerCards);
         if(sum1Player == 21 || sum2Player == 21){ //check for blackjack
             checkDealer21();//check for draw
-            endRound(); // ########check bug
+            stage = Stage.nextRound;
         }
         else {
             stage = Stage.hitorstand; // next stage is hit/stand if sum is not 21
@@ -74,12 +80,13 @@ contract Game is CardGenerator{
         
         (uint sum1Player, uint sum2Player) = countTotal(playerCards); //counting sum for exceding 21 or blackjack
         if(sum1Player > 21 && sum2Player > 21){ //checking for bust
-            roundResults[round] = Results.Dealer; //storing winner
-            endRound();
+            dealerCards.push(getCard());
+            roundResults.push(Results.Dealer); //storing winner
+            stage = Stage.nextRound;
         }
         else if(sum1Player == 21 || sum2Player == 21){ //check for blackjack
             checkDealer21(); //check for draw 
-            endRound();
+            stage = Stage.nextRound;
         }
     }
     
@@ -95,7 +102,12 @@ contract Game is CardGenerator{
         else {
             sumPlayer = sum1Player;
         }
+        
+        checkStand(sumPlayer);
+        stage = Stage.nextRound;
     }
+    
+    
     
     function checkStand(uint _sumPlayer) internal { //error
         
@@ -103,28 +115,50 @@ contract Game is CardGenerator{
         (uint sum1dealer, uint sum2dealer) = countTotal(dealerCards);
         uint f = 0;
         
-        do {
-            
+        if( sum1dealer > _sumPlayer || sum2dealer > _sumPlayer) {
+            f = 1;
+        }
+        else if(sum1dealer == _sumPlayer || sum2dealer == _sumPlayer) {
+            f = 2;
+        }
+        
+        
+        while( (sum1dealer < _sumPlayer) && (f == 0)) {
             dealerCards.push(getCard());
             (sum1dealer,sum2dealer) = countTotal(dealerCards);
             
-            
+            if(sum1dealer >= _sumPlayer || sum2dealer >= _sumPlayer) {
+                if(((sum1dealer > _sumPlayer) && (sum1dealer <=21 )) || ((sum2dealer > _sumPlayer) && (sum2dealer <= 21))) {
+                    f = 1;
+                }
+                else if( (sum1dealer == _sumPlayer) || (sum2dealer == _sumPlayer)) {
+                    f = 2;
+                }
+            }
+        }
+        
+        if(f == 1){
+            roundResults.push(Results.Dealer);
+        }
+        else if(f == 2) {
+            roundResults.push(Results.Draw);
+        }
+        else{
+            roundResults.push(Results.Player);
         }
     }
     
-    
-    
-    
+
     function checkDealer21() internal {
         
         if(stage == Stage.deal) {
             dealerCards.push(getCard());
             (uint sum1dealer, uint sum2dealer) = countTotal(dealerCards);
             if(sum1dealer == 21 || sum2dealer == 21) {
-                roundResults[round] = Results.Draw;
+                roundResults.push(Results.Draw);
             }
             else {
-                roundResults[round] = Results.Player;
+                roundResults.push(Results.Player);
             }
         }
         else if(stage == Stage.hitorstand) {
@@ -141,10 +175,10 @@ contract Game is CardGenerator{
             }
             
             if(f == 1) {
-                roundResults[round] = Results.Draw;
+                roundResults.push(Results.Draw);
             }
             else {
-                roundResults[round] = Results.Player;
+                roundResults.push(Results.Player);
             }
         }
     }
@@ -165,8 +199,8 @@ contract Game is CardGenerator{
         13 - K
     */
     
-    function countTotal(uint[] memory _cardArray) internal returns(uint,uint) {  // to count the total of the cards 
-        uint[14] cardCount; //array to store the no. of each cards ...index 0 is left blank
+    function countTotal(uint[] memory _cardArray) pure internal returns(uint,uint) {  // to count the total of the cards 
+        uint[14] memory cardCount; //array to store the no. of each cards ...index 0 is left blank
         uint sum1 = 0;
         uint sum2 = 0;
         
@@ -200,9 +234,29 @@ contract Game is CardGenerator{
     }
         
     
+    function getPlayerCards() public returns(string[] memory) {
+        
+        delete viewPlayerCards;
+        
+        for(uint i=0; i < playerCards.length; i++) { //storing no. of each cards
+            viewPlayerCards.push(getCardString(playerCards[i]));
+        }
+        return viewPlayerCards;
+    }
+    
+    function getDealerCards() public returns(string[] memory) {
+        
+        delete viewDealerCards;
+        
+        for(uint i=0; i < dealerCards.length; i++) { //storing no. of each cards
+            viewDealerCards.push(getCardString(dealerCards[i]));
+        }
+        return viewDealerCards;
+    }
     
     
-    function endRound() public {
+    function nextRound() public {
+        require(stage == Stage.nextRound, "Game not ended.");
         delete playerCards;
         delete dealerCards;
         round ++;
